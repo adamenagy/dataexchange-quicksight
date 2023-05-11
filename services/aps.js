@@ -84,14 +84,69 @@ service.createTable = async () => {
     database: ""
   });
 
-  con.connect(function(err) {
+  con.connect(async function(err) {
     if (err) throw err;
     console.log("Connected!");
 
-    var sql = "CREATE TABLE customers (name VARCHAR(255), address VARCHAR(255))";
-    con.query(sql, function (err, result) {
+    const fs = require('fs');
+    let json = JSON.parse(fs.readFileSync("./wwwroot/test/volume_response.json", 'utf8'));
+    //let resp = await fetch("/test/dx_response.json");
+    //let json = await resp.json();
+    let { propNames, flattenedJson } = await flattenJson(json);
+
+    let counter = 0;
+    let fields = propNames.map((name) => {
+      if (counter++ > 100) return;  
+      return `${name} VARCHAR(100)`;
+    }).filter(name => name !== undefined).join(", ");
+
+    var sql = `CREATE TABLE test (${fields})`;
+    con.query(sql, function (err) {
       if (err) throw err;
       console.log("Table created");
+      for (item of flattenedJson) {
+        let columns = Object.keys(item).join(", ");
+        let values = Object.values(item).map(item => (typeof item === 'string') ? `'${item}'` : `${item}`).join(", ");
+        var sql = `INSERT INTO test (${columns}) VALUES (${values})`;
+        con.query(sql, function (err) {
+          if (err) throw err;
+          console.log("1 record inserted");
+        });
+      }
     });
   });
+}
+
+async function flattenJson(json) {
+  function flattenObject(obj, propGroup, props) {
+    if (obj.id !== undefined && obj.properties !== undefined) {
+      propGroup = obj.name;
+    }
+    if (obj.displayValue !== undefined && obj.propertyDefinition !== undefined) {
+      let name = `${propGroup}_${obj.name}`.replace(/[\s-]/g, "_");
+      props[name] = obj.value;
+      if (!propNames.includes(name)) {
+        propNames.push(name); 
+      } 
+    } else {
+      for (let prop in obj) {
+        if (obj.hasOwnProperty(prop)) {
+          if (typeof obj[prop] === "object") {
+            flattenObject(obj[prop], propGroup, props);
+          }
+        }
+      }
+    }
+  }
+
+  let propNames = [];
+  let flattenedJson = json.data.designEntities.results.map((item) => {
+    let props = {};
+    flattenObject(item, null, props);
+    return props;
+  });
+  console.log(propNames);
+  console.log(flattenedJson);
+
+  return { propNames, flattenedJson };
 }

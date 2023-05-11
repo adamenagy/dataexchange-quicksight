@@ -1,0 +1,46 @@
+<html lang="en">
+  <head>
+    <title>My First Website</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body>
+    <script>
+      async function flattenJson() {
+        let resp = await fetch("./dx_response.json");
+        let json = await resp.json();
+
+        function flattenObject(obj, propGroup, props) {
+          if (obj.id !== undefined && obj.properties !== undefined) {
+            propGroup = obj.name;
+          }
+          if (obj.displayValue !== undefined && obj.propertyDefinition !== undefined) {
+            let name = `${propGroup}[${obj.name}]`;
+            props[name] = obj.value;
+            if (!propNames.includes(name)) {
+              propNames.push(name); 
+            } 
+          } else {
+            for (let prop in obj) {
+              if (obj.hasOwnProperty(prop)) {
+                if (typeof obj[prop] === "object") {
+                  flattenObject(obj[prop], propGroup, props);
+                }
+              }
+            }
+          }
+        }
+
+        let propNames = [];
+        let flattenedJson = json.data.designEntities.results.map((item) => {
+          let props = {};
+          flattenObject(item, null, props);
+          return props;
+        });
+        console.log(propNames);
+        console.log(flattenedJson);
+      }
+      flattenJson();
+    </script>
+  </body>
+</html>
