@@ -1,5 +1,6 @@
 const APS = require('forge-apis');
-const { APS_CLIENT_ID, APS_CLIENT_SECRET, APS_CALLBACK_URL, INTERNAL_TOKEN_SCOPES, PUBLIC_TOKEN_SCOPES } = require('../config.js');
+const { APS_CLIENT_ID, APS_CLIENT_SECRET, APS_CALLBACK_URL, APS_DATA_ENDPOINT, INTERNAL_TOKEN_SCOPES, PUBLIC_TOKEN_SCOPES } = require('../config.js');
+//const { get } = require('../routes/auth.js');
 
 const internalAuthClient = new APS.AuthClientThreeLegged(APS_CLIENT_ID, APS_CLIENT_SECRET, APS_CALLBACK_URL, INTERNAL_TOKEN_SCOPES);
 const publicAuthClient = new APS.AuthClientThreeLegged(APS_CLIENT_ID, APS_CLIENT_SECRET, APS_CALLBACK_URL, PUBLIC_TOKEN_SCOPES);
@@ -89,32 +90,92 @@ service.createTable = async () => {
     console.log("Connected!");
 
     const fs = require('fs');
-    let json = JSON.parse(fs.readFileSync("./wwwroot/test/volume_response.json", 'utf8'));
-    //let resp = await fetch("/test/dx_response.json");
-    //let json = await resp.json();
+    let json = JSON.parse(fs.readFileSync("./wwwroot/test/dx_response.json", 'utf8'));
     let { propNames, flattenedJson } = await flattenJson(json);
 
     let counter = 0;
-    let fields = propNames.map((name) => {
+    let fields = Object.keys(propNames).map((name) => {
       if (counter++ > 100) return;  
-      return `${name} VARCHAR(100)`;
+      let type = propNames[name] === 'number' ? 'DOUBLE' : 'VARCHAR(100)';
+      return `${name} ${type}`;
     }).filter(name => name !== undefined).join(", ");
 
-    var sql = `CREATE TABLE test (${fields})`;
+    var sql = `CREATE TABLE test3 (${fields})`;
     con.query(sql, function (err) {
       if (err) throw err;
       console.log("Table created");
       for (item of flattenedJson) {
         let columns = Object.keys(item).join(", ");
-        let values = Object.values(item).map(item => (typeof item === 'string') ? `'${item}'` : `${item}`).join(", ");
-        var sql = `INSERT INTO test (${columns}) VALUES (${values})`;
+        let values = Object.values(item).map(item => (typeof item === 'number') ? `${item}` : `'${item}'`).join(", ");
+        var sql = `INSERT INTO test3 (${columns}) VALUES (${values})`;
         con.query(sql, function (err) {
-          if (err) throw err;
+          if (err) {
+            console.log(err.sql);
+            throw err;
+          }
           console.log("1 record inserted");
         });
       }
     });
   });
+}
+
+async function getExchangeData(exchangeId, token) {
+  const axios = require('axios');
+
+  const query = ` 
+    query DesignEntities($exchangeId: ID!) {
+      designEntities(
+        filter: { exchangeId: $exchangeId
+        }
+      ) {
+          results {
+            id
+            name
+            classification {
+              category
+            }
+            propertyGroups {
+            results {
+              id
+              name
+              properties {
+                results {
+                  name
+                  displayValue
+                  value
+              propertyDefinition {
+                  description
+                  specification
+                  type
+                  units
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+  const variables = {
+    exchangeId: "5dd10c75-fc86-303b-b385-4dbe06c9bab0"
+  }
+
+  let response = await axios({
+    method: 'POST',
+    url: APS_DATA_ENDPOINT,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token.access_token}`
+    },
+    data: { 
+      query,
+      variables
+    }
+  })
+
+  console.log(response);
 }
 
 async function flattenJson(json) {
@@ -125,8 +186,8 @@ async function flattenJson(json) {
     if (obj.displayValue !== undefined && obj.propertyDefinition !== undefined) {
       let name = `${propGroup}_${obj.name}`.replace(/[\s-]/g, "_");
       props[name] = obj.value;
-      if (!propNames.includes(name)) {
-        propNames.push(name); 
+      if (!propNames[name]) {
+        propNames[name] = typeof obj.value; 
       } 
     } else {
       for (let prop in obj) {
@@ -139,7 +200,7 @@ async function flattenJson(json) {
     }
   }
 
-  let propNames = [];
+  let propNames = {};
   let flattenedJson = json.data.designEntities.results.map((item) => {
     let props = {};
     flattenObject(item, null, props);
@@ -150,3 +211,44 @@ async function flattenJson(json) {
 
   return { propNames, flattenedJson };
 }
+
+service.getExchangeId = async (exchangeFileVersion, token) => {
+  const axios = require('axios');
+
+  const query = ` 
+    query GetExchnageId($exchangeFileVersion: ID!) {
+      exchanges(filter: {exchangeFileVersion: $exchangeFileVersion}) {
+        results {
+          name
+          id
+        }
+      }
+    }
+  `;
+  const variables = {
+    exchangeFileVersion
+  }
+
+  let response = await axios({
+    method: 'POST',
+    url: APS_DATA_ENDPOINT,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token.access_token}`
+    },
+    data: { 
+      query,
+      variables
+    }
+  })
+
+  console.log(response); 
+  
+  return response.data.data.exchanges.results[0].id;
+}
+
+service.createQuickSightDataset = async (exchangeFileVersion, token) => {
+  getExchangeData(exchangeFileVersion, token);
+}
+
+
