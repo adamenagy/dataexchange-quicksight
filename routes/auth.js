@@ -5,12 +5,13 @@ const {
   authRefreshMiddleware, 
   getUserProfile,
   createTable, 
+  createQuickSightDataset,
 } = require('../services/aps.js');
 
 let router = express.Router();
 
 router.get('/api/auth/login', function (req, res) {
-    createTable();
+  createQuickSightDataset();
     res.redirect(getAuthorizationUrl());
 });
 

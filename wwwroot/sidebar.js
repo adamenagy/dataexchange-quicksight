@@ -56,11 +56,14 @@ export function initTree(selector, onSelectionChanged) {
             }
         }
     });
-    tree.on('node.click', function (event, node) {
+    tree.on('node.click', async function (event, node) {
         event.preventTreeDefault();
         const tokens = node.id.split('|');
         if (tokens[0] === 'version') {
             onSelectionChanged(tokens[1], node.itree.parent.text.split('.').pop());
+
+            const res = await getJSON(`/api/exchange/${encodeURIComponent(tokens[1])}`);
+            console.log(res);
         }
     });
     return new InspireTreeDOM(tree, { target: selector });

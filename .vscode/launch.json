@@ -19,7 +19,8 @@
             "env": {
               "APS_CLIENT_ID": "aps-client-id",
               "APS_CLIENT_SECRET": "aps-client-secret",
-              "APS_CALLBACK_URL": "http://localhost:3000/auth/aps/callback",
+              "APS_CALLBACK_URL": "http://localhost:8080/api/auth/callback",
+              "APS_DATA_ENDPOINT": "https://developer.api.autodesk.com/dataexchange/2022-11/graphql",
               "SERVER_SESSION_SECRET": "server-session-secret",
             }
         }
