@@ -1,5 +1,10 @@
 const APS = require('forge-apis');
-const { APS_CLIENT_ID, APS_CLIENT_SECRET, APS_CALLBACK_URL, APS_DATA_ENDPOINT, INTERNAL_TOKEN_SCOPES, PUBLIC_TOKEN_SCOPES } = require('../config.js');
+const { 
+  APS_CLIENT_ID, APS_CLIENT_SECRET, APS_CALLBACK_URL, APS_DATA_ENDPOINT, 
+  INTERNAL_TOKEN_SCOPES, PUBLIC_TOKEN_SCOPES,
+  DB_HOST, DB_NAME, DB_USER_NAME, DB_USER_PASSWORD,
+  AWS_ACCOUNT_ID, AWS_USER_NAME
+} = require('../config.js');
 //const { get } = require('../routes/auth.js');
 
 const internalAuthClient = new APS.AuthClientThreeLegged(APS_CLIENT_ID, APS_CLIENT_SECRET, APS_CALLBACK_URL, INTERNAL_TOKEN_SCOPES);
@@ -79,10 +84,10 @@ async function createTable(propNames, flattenedJson, tableName) {
   const mysql = require('mysql');
 
   let con = mysql.createConnection({
-    host: "",
-    user: "",
-    password: "",
-    database: ""
+    host: DB_HOST,
+    user: DB_USER_NAME,
+    password: DB_USER_PASSWORD,
+    database: DB_NAME
   });
 
   con.connect(async function(err) {
@@ -263,31 +268,129 @@ service.createQuickSightDataset = async (exchangeId, exchangeName, token) => {
     await createTable(flatJson.propNames, flatJson.flattenedJson, exchangeName);
 
     const l = "";
+}
 
-    /*
-    const quicksight = require('aws-sdk/clients/quicksight');
-    const qs = new quicksight({ region: 'us-east-1' });
-    const params = {
-      AwsAccountId: '123456789012',
-      DataSetId: 'string',
-      Name: 'string',
-      PhysicalTableMap: {
-        '<PhysicalTableId>': {
-          CustomSql: {
-            DataSourceArn: 'string',
-            Name: 'string',
-            SqlQuery: 'string',
-            Columns: [
+service.createQuickSightTest = async (token) => {  
+  const { QuickSightClient, CreateDataSourceCommand, CreateDataSetCommand } = require('@aws-sdk/client-quicksight');
+  
+  const client = new QuickSightClient({ region: 'us-east-1' });
 
-            ]
+  
+
+
+
+  const dataSourceInput = { // CreateDataSourceRequest
+    AwsAccountId: AWS_ACCOUNT_ID, // required
+    DataSourceId: "mydatasourceId3", // required
+    Name: "mydatasourceName3", // required
+    Type: "MYSQL", // required
+    DataSourceParameters: { // DataSourceParameters Union: only one key present
+      MySqlParameters: { // MySqlParameters
+        Host: DB_HOST, // required
+        Port: 3306, // required
+        Database: DB_NAME, // required
+      },
+    },
+    Credentials: { // DataSourceCredentials
+      CredentialPair: { // CredentialPair
+        Username: DB_USER_NAME, // required
+        Password: DB_USER_PASSWORD, // required
+        // AlternateDataSourceParameters: [ // DataSourceParametersList
+        //   {//  Union: only one key present
+        //     MySqlParameters: {
+        //       Host: DB_HOST, // required
+        //       Port: 3306, // required
+        //       Database: DB_NAME, // required
+        //     },
+        //   },
+        // ],
+      },
+//      CopySourceArn: "STRING_VALUE",
+//      SecretArn: "STRING_VALUE",
+    },
+      Permissions: [ // ResourcePermissionList
+        { // ResourcePermission
+          Principal: `arn:aws:quicksight:us-east-1:${AWS_ACCOUNT_ID}:user/default/${AWS_USER_NAME}`, // required
+          Actions: [ // ActionList // required
+            "quicksight:DescribeDataSource",
+            "quicksight:DescribeDataSourcePermissions",
+            "quicksight:PassDataSource",
+            "quicksight:UpdateDataSource",
+            "quicksight:DeleteDataSource",
+            "quicksight:UpdateDataSourcePermissions",
+           // "quicksight:DescribeIngestion",
+           // "quicksight:ListIngestions",
+           // "quicksight:CreateIngestion",
+           // "quicksight:CancelIngestion",
+          ],
+        },
+      ],
+//    VpcConnectionProperties: { // VpcConnectionProperties
+//      VpcConnectionArn: "STRING_VALUE", // required
+//    },
+    SslProperties: { // SslProperties
+      DisableSsl: true,
+    },
+    Tags: [ // TagList
+      { // Tag
+        Key: "Key", // required
+        Value: "Value", // required
+      },
+    ],
+  };  
+
+  const dataSourceCommand = new CreateDataSourceCommand(dataSourceInput);
+  const dataSourceResponse = await client.send(dataSourceCommand);
+  
+
+ 
+
+/*
+
+  const dataSetInput = { // CreateDataSetRequest
+  AwsAccountId: AWS_ACCOUNT_ID, // required
+  DataSetId: "mydatasetId4", // required
+  Name: "mydatasetName4", // required
+  PhysicalTableMap: { // PhysicalTableMap // required
+    "12012023-sdfds1111111111": { // PhysicalTable Union: only one key present
+      RelationalTable: { // RelationalTable
+        DataSourceArn: `arn:aws:quicksight:us-east-1:${AWS_ACCOUNT_ID}:datasource/mydatasource2`, // required
+        Name: "12012023-sdfds1111111111", // required
+        InputColumns: [ // InputColumnList // required
+          { // InputColumn
+            Name: "base_name", // required
+            Type: "STRING", // required
           },
-          RelationalTable: {
-            DataSourceArn: 'string',
-            Schema: 'string',
-            Name: 'string'
-          },
-          */
+        ],
+      },
+      
+    },
+  },
 
+  ImportMode: "DIRECT_QUERY", // required
+ // https://docs.aws.amazon.com/solutions/latest/devops-monitoring-dashboard-on-aws/retrieve-the-amazon-quicksight-principal-arn.html
+  Permissions: [ // ResourcePermissionList
+      { // ResourcePermission
+        Principal: `arn:aws:quicksight:us-east-1:${AWS_ACCOUNT_ID}:user/default/${AWS_USER_NAME}`, // required
+        Actions: [ // ActionList // required
+          "quicksight:DescribeDataSet",
+          "quicksight:DescribeDataSetPermissions",
+          "quicksight:PassDataSet",
+          "quicksight:DescribeIngestion",
+          "quicksight:ListIngestions",
+          "quicksight:UpdateDataSet",
+          "quicksight:DeleteDataSet",
+          "quicksight:CreateIngestion",
+          "quicksight:CancelIngestion",
+          "quicksight:UpdateDataSetPermissions"
+        ],
+      },
+    ],
+  
+};
+const dataSetCommand = new CreateDataSetCommand(dataSetInput);
+const dataSetResponse = await client.send(dataSetCommand);
+*/
 }
 
 
