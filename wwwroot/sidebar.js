@@ -58,12 +58,22 @@ export function initTree(selector, onSelectionChanged) {
     });
     tree.on('node.click', async function (event, node) {
         event.preventTreeDefault();
+        let button = document.getElementById('quickSight');
+        button.disabled = true;
+
         const tokens = node.id.split('|');
         if (tokens[0] === 'version') {
             onSelectionChanged(tokens[1], node.itree.parent.text.split('.').pop());
 
-            const res = await getJSON(`/api/exchange/${encodeURIComponent(tokens[1])}`);
-            console.log(res);
+            try {
+              const res = await getJSON(`/api/exchange/${encodeURIComponent(tokens[1])}`);
+              console.log(res);
+              if (res.exchangeId) {
+                button.disabled = false;
+                button.exchangeId = res.exchangeId;
+                button.exchangeName = node.itree.parent.text;
+              }
+            } catch {}
         }
     });
     return new InspireTreeDOM(tree, { target: selector });

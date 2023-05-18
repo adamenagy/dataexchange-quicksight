@@ -1,6 +1,20 @@
 import { initViewer, loadModel, loadTiles } from './viewer.js';
 import { initTree } from './sidebar.js';
 
+const quickSight = document.getElementById('quickSight');
+quickSight.onclick = async () => {
+  await fetch(`/api/exchange`, { 
+    method: 'POST', 
+    headers: { 
+      'Content-Type': 'application/json' 
+    },
+    body: JSON.stringify({ 
+      exchangeId: quickSight.exchangeId,
+      exchangeName: quickSight.exchangeName 
+    })
+  });
+}
+
 const login = document.getElementById('login');
 try {
     const resp = await fetch('/api/auth/profile');

@@ -75,7 +75,7 @@ service.getItemVersions = async (projectId, itemId, token) => {
     return resp.body.data;
 };
 
-service.createTable = async () => {
+async function createTable(propNames, flattenedJson, tableName) {
   const mysql = require('mysql');
 
   let con = mysql.createConnection({
@@ -89,9 +89,9 @@ service.createTable = async () => {
     if (err) throw err;
     console.log("Connected!");
 
-    const fs = require('fs');
-    let json = JSON.parse(fs.readFileSync("./wwwroot/test/dx_response.json", 'utf8'));
-    let { propNames, flattenedJson } = await flattenJson(json);
+    //const fs = require('fs');
+    //let json = JSON.parse(fs.readFileSync("./wwwroot/test/dx_response.json", 'utf8'));
+    //let { propNames, flattenedJson } = flattenJson(json);
 
     let counter = 0;
     let fields = Object.keys(propNames).map((name) => {
@@ -100,14 +100,22 @@ service.createTable = async () => {
       return `${name} ${type}`;
     }).filter(name => name !== undefined).join(", ");
 
-    var sql = `CREATE TABLE test3 (${fields})`;
+    if (fields.length === 0) {
+      console.log("No fields to create");
+      return;
+    }
+
+    tableName = con.escapeId(tableName);
+    var sql = `CREATE TABLE ${tableName} (${fields})`;
+    //tableName = con.escapeId(tableName);
+    //var sql = `CREATE TABLE ${tableName} (ID DOUBLE)`;
     con.query(sql, function (err) {
       if (err) throw err;
       console.log("Table created");
       for (item of flattenedJson) {
         let columns = Object.keys(item).join(", ");
         let values = Object.values(item).map(item => (typeof item === 'number') ? `${item}` : `'${item}'`).join(", ");
-        var sql = `INSERT INTO test3 (${columns}) VALUES (${values})`;
+        var sql = `INSERT INTO ${tableName} (${columns}) VALUES (${values})`;
         con.query(sql, function (err) {
           if (err) {
             console.log(err.sql);
@@ -159,7 +167,7 @@ async function getExchangeData(exchangeId, token) {
     }
   `;
   const variables = {
-    exchangeId: "5dd10c75-fc86-303b-b385-4dbe06c9bab0"
+    exchangeId
   }
 
   let response = await axios({
@@ -176,9 +184,11 @@ async function getExchangeData(exchangeId, token) {
   })
 
   console.log(response);
+
+  return response.data;
 }
 
-async function flattenJson(json) {
+function flattenJson(json) {
   function flattenObject(obj, propGroup, props) {
     if (obj.id !== undefined && obj.properties !== undefined) {
       propGroup = obj.name;
@@ -247,8 +257,37 @@ service.getExchangeId = async (exchangeFileVersion, token) => {
   return response.data.data.exchanges.results[0].id;
 }
 
-service.createQuickSightDataset = async (exchangeFileVersion, token) => {
-  getExchangeData(exchangeFileVersion, token);
+service.createQuickSightDataset = async (exchangeId, exchangeName, token) => {
+    const data = await getExchangeData(exchangeId, token);
+    const flatJson = flattenJson(data);
+    await createTable(flatJson.propNames, flatJson.flattenedJson, exchangeName);
+
+    const l = "";
+
+    /*
+    const quicksight = require('aws-sdk/clients/quicksight');
+    const qs = new quicksight({ region: 'us-east-1' });
+    const params = {
+      AwsAccountId: '123456789012',
+      DataSetId: 'string',
+      Name: 'string',
+      PhysicalTableMap: {
+        '<PhysicalTableId>': {
+          CustomSql: {
+            DataSourceArn: 'string',
+            Name: 'string',
+            SqlQuery: 'string',
+            Columns: [
+
+            ]
+          },
+          RelationalTable: {
+            DataSourceArn: 'string',
+            Schema: 'string',
+            Name: 'string'
+          },
+          */
+
 }
 
 
