@@ -28,6 +28,7 @@
               "DB_NAME": "",
               "DB_USER_NAME": "",
               "DB_USER_PASSWORD": "",
+              "AWS_DATASOURCE_NAME": "",
             }
         }
     ]

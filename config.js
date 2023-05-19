@@ -1,15 +1,19 @@
 let { 
   APS_CLIENT_ID, APS_CLIENT_SECRET, APS_CALLBACK_URL, APS_DATA_ENDPOINT, SERVER_SESSION_SECRET, PORT,
   DB_HOST, DB_NAME, DB_USER_NAME, DB_USER_PASSWORD, 
-  AWS_ACCOUNT_ID, AWS_USER_NAME
+  AWS_ACCOUNT_ID, AWS_USER_NAME, AWS_DATASOURCE_NAME
 } = process.env;
+
 if (!APS_CLIENT_ID || !APS_CLIENT_SECRET || !APS_CALLBACK_URL || !SERVER_SESSION_SECRET) {
     console.warn('Missing some of the environment variables.');
     process.exit(1);
 }
+
 const INTERNAL_TOKEN_SCOPES = ['data:read'];
 const PUBLIC_TOKEN_SCOPES = ['viewables:read'];
 PORT = PORT || 8080;
+
+const AWS_DATASOURCE_ID = AWS_DATASOURCE_NAME.replace(/ /g, '_').toLowerCase();
 
 module.exports = {
     APS_CLIENT_ID,
@@ -25,5 +29,7 @@ module.exports = {
     DB_USER_NAME, 
     DB_USER_PASSWORD,
     AWS_ACCOUNT_ID,
-    AWS_USER_NAME
+    AWS_USER_NAME,
+    AWS_DATASOURCE_NAME,
+    AWS_DATASOURCE_ID
 };

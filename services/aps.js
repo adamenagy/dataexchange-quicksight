@@ -12,6 +12,8 @@ const {
   DB_USER_PASSWORD,
   AWS_ACCOUNT_ID,
   AWS_USER_NAME,
+  AWS_DATASOURCE_NAME,
+  AWS_DATASOURCE_ID
 } = require("../config.js");
 //const { get } = require('../routes/auth.js');
 
@@ -346,14 +348,21 @@ service.getExchangeId = async (exchangeFileVersion, token) => {
 service.createQuickSightDataset = async (exchangeId, exchangeName, token) => {
   const data = await getExchangeData(exchangeId, token);
   const flatJson = flattenJson(data);
-  await createTable(flatJson.propNames, flatJson.flattenedJson, exchangeName);
+  exchangeName = exchangeName.replace(/[\s-]/g, "_");
+  try {
+    await createTable(flatJson.propNames, flatJson.flattenedJson, exchangeName);
+  } catch (err) {
+    console.log(err);
+    if (err.code !== 'ER_TABLE_EXISTS_ERROR') {
+      throw err;
+    }
+  }
+
   await createQuickSightDatasetFromTable(
     exchangeName,
     flatJson.propNames,
     token
   );
-
-  console.log("QuickSight dataset created");
 };
 
 async function createQuickSightDatasetFromTable(
@@ -370,8 +379,8 @@ async function createQuickSightDatasetFromTable(
 
   const dataSourceInput = {
     AwsAccountId: AWS_ACCOUNT_ID,
-    DataSourceId: exchangeName,
-    Name: exchangeName,
+    DataSourceId: AWS_DATASOURCE_ID,
+    Name: AWS_DATASOURCE_NAME,
     Type: "MYSQL",
     DataSourceParameters: {
       MySqlParameters: {
@@ -384,15 +393,6 @@ async function createQuickSightDatasetFromTable(
       CredentialPair: {
         Username: DB_USER_NAME,
         Password: DB_USER_PASSWORD,
-        // AlternateDataSourceParameters: [ // DataSourceParametersList
-        //   {//  Union: only one key present
-        //     MySqlParameters: {
-        //       Host: DB_HOST, // required
-        //       Port: 3306, // required
-        //       Database: DB_NAME, // required
-        //     },
-        //   },
-        // ],
       },
     },
     Permissions: [{
@@ -417,10 +417,17 @@ async function createQuickSightDatasetFromTable(
     ],
   };
 
-  const dataSourceCommand = new CreateDataSourceCommand(dataSourceInput);
-  const dataSourceResponse = await client.send(dataSourceCommand);
+  try {
+    const dataSourceCommand = new CreateDataSourceCommand(dataSourceInput);
+    const dataSourceResponse = await client.send(dataSourceCommand);
+
+    console.log("QuickSight Data Source created");
+  } catch (err) {
+    console.log(err);
+  }
 
   let inputColumns = Object.keys(propNames).map((propName) => {
+    console.log(propName, propName.length);
     return {
       Name: propName,
       Type: propNames[propName] === "number" ? "DECIMAL" : "STRING",
@@ -434,7 +441,7 @@ async function createQuickSightDatasetFromTable(
     PhysicalTableMap: {
       [exchangeName]: {
         RelationalTable: {
-          DataSourceArn: `arn:aws:quicksight:us-east-1:${AWS_ACCOUNT_ID}:datasource/${exchangeName}`,
+          DataSourceArn: `arn:aws:quicksight:us-east-1:${AWS_ACCOUNT_ID}:datasource/${AWS_DATASOURCE_ID}`,
           Name: exchangeName,
           InputColumns: inputColumns,
         },
@@ -459,6 +466,13 @@ async function createQuickSightDatasetFromTable(
       ],
     }],
   };
-  const dataSetCommand = new CreateDataSetCommand(dataSetInput);
-  const dataSetResponse = await client.send(dataSetCommand);
+
+  try {
+    const dataSetCommand = new CreateDataSetCommand(dataSetInput);
+    const dataSetResponse = await client.send(dataSetCommand);
+
+    console.log("QuickSight Data Set created");
+  } catch (err) { 
+    console.log(err);
+  }
 }
